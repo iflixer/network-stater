@@ -4,12 +4,10 @@ WORKDIR /build
 COPY src/go.mod ./
 RUN go mod download
 COPY src src
-WORKDIR /build/src
-RUN CGO_ENABLED=0 GOOS=linux go build -o /build/app .
+ENV CGO_ENABLED=0 GOOS=linux
+RUN go build -trimpath -ldflags="-s -w" -o /network-stater .
 
-FROM alpine:3.15
-WORKDIR /app
-
-COPY --from=build-env /build/app /app/network-stater
-
-ENTRYPOINT [ "/app/network-stater" ]
+FROM gcr.io/distroless/static:nonroot
+COPY --from=build /network-stater /network-stater
+USER 65532:65532
+ENTRYPOINT ["/network-stater"]
