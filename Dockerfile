@@ -1,8 +1,8 @@
 FROM golang:1.23-alpine AS build
 WORKDIR /build
-COPY go.mod ./
+COPY src/go.mod ./
 RUN go mod download
-COPY . .
+COPY src/ .
 RUN go build -trimpath -ldflags="-s -w" -o /network-stater .
 
 FROM gcr.io/distroless/static:nonroot
