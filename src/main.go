@@ -21,9 +21,14 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const (
-	procNetDev = "/proc/net/dev"
-)
+const defaultProcNetDev = "/proc/net/dev"
+
+func getProcNetDevPath() string {
+	if p := os.Getenv("PROC_NET_DEV"); p != "" {
+		return p
+	}
+	return defaultProcNetDev
+}
 
 type Payload struct {
 	Host             string  `json:"host"`
@@ -43,7 +48,7 @@ type counters struct {
 }
 
 func readTotals() (c counters, err error) {
-	f, err := os.Open(procNetDev)
+	f, err := os.Open(getProcNetDevPath())
 	if err != nil {
 		return c, err
 	}
@@ -112,6 +117,9 @@ func main() {
 	}
 
 	host, _ := os.Hostname()
+	if os.Getenv("NODE_NAME") != "" {
+		host = os.Getenv("NODE_NAME")
+	}
 	host = filepath.Base(host)
 
 	httpClient := &http.Client{Timeout: 10 * time.Second}
