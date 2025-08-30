@@ -1,6 +1,6 @@
 FROM golang:1.23-alpine AS build
 WORKDIR /build
-COPY go.mod go.sum ./
+COPY go.mod ./
 RUN go mod download
 COPY . .
 RUN go build -trimpath -ldflags="-s -w" -o /network-stater .
