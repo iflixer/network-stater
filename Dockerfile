@@ -1,10 +1,8 @@
-# build environment
-FROM golang:1.25 AS build
+FROM golang:1.23-alpine AS build
 WORKDIR /build
-COPY src/go.mod ./
+COPY go.mod go.sum ./
 RUN go mod download
-COPY src src
-ENV CGO_ENABLED=0 GOOS=linux
+COPY . .
 RUN go build -trimpath -ldflags="-s -w" -o /network-stater .
 
 FROM gcr.io/distroless/static:nonroot
