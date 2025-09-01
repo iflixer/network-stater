@@ -9,7 +9,7 @@ RUN go mod download
 COPY src/ .
 # Сборка статически линкованного бинаря (чтобы он шёл в distroless:static)
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) \
-    go build -trimpath -ldflags="-s -w" -o /out/network-stater ./cmd/network-stater
+    go build -trimpath -ldflags="-s -w" -o /out/network-stater .
 
 # ---------- 2) базовый слой с certs для копирования ----------
 FROM alpine:3.20 AS certs
