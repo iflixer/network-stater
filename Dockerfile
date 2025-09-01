@@ -5,7 +5,8 @@ RUN go mod download
 COPY src/ .
 RUN go build -trimpath -ldflags="-s -w" -o /network-stater .
 
-FROM gcr.io/distroless/static:nonroot
+# FROM gcr.io/distroless/static:nonroot
+FROM debian:bookworm-slim
 COPY --from=build /network-stater /network-stater
 USER 65532:65532
 ENTRYPOINT ["/network-stater"]
