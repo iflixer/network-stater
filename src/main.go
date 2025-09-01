@@ -166,6 +166,8 @@ func main() {
 				req.Header.Set("Authorization", "Bearer "+apiKey)
 			}
 
+			log.Printf("reporting: rx=%.1fB/s tx=%.1fB/s to %s\n", pl.RxBytesPerSec, pl.TxBytesPerSec, reportURL)
+
 			resp, err := client.Do(req)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "POST %s: %v\n", reportURL, err)
