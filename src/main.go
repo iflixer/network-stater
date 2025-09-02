@@ -74,15 +74,18 @@ func readTotals() (c counters, err error) {
 			continue
 		}
 		iface := strings.TrimSpace(parts[0])
-		if iface == "lo" {
+
+		// считаем только uplink-и вида en*, всё остальное (lo, cni0, flannel, veth и т.д.) — пропускаем
+		if iface == "lo" || !strings.HasPrefix(iface, "en") {
 			continue
 		}
+
 		fields := strings.Fields(parts[1])
 		if len(fields) < 16 {
 			return c, fmt.Errorf("unexpected format for %s", iface)
 		}
-		rx, err1 := strconv.ParseUint(fields[0], 10, 64)
-		tx, err2 := strconv.ParseUint(fields[8], 10, 64)
+		rx, err1 := strconv.ParseUint(fields[0], 10, 64) // Receive bytes
+		tx, err2 := strconv.ParseUint(fields[8], 10, 64) // Transmit bytes
 		if err1 != nil || err2 != nil {
 			return c, fmt.Errorf("parse counters failed for %s", iface)
 		}
