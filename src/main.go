@@ -1,5 +1,4 @@
 // netload-reporter.go
-// sends network usage to http
 package main
 
 import (
@@ -22,6 +21,7 @@ import (
 )
 
 const defaultProcNetDev = "/proc/net/dev"
+const avgWindow = 5 * time.Minute
 
 type Payload struct {
 	Host             string  `json:"host"`
@@ -34,6 +34,14 @@ type Payload struct {
 	TxBitsPerSec     float64 `json:"tx_bits_per_sec"`
 	TotalBytesPerSec float64 `json:"total_bytes_per_sec"`
 	TotalBitsPerSec  float64 `json:"total_bits_per_sec"`
+
+	// 5-минутное скользящее среднее
+	RxBytesPerSec5m    float64 `json:"rx_bytes_per_sec_5m"`
+	TxBytesPerSec5m    float64 `json:"tx_bytes_per_sec_5m"`
+	TotalBytesPerSec5m float64 `json:"total_bytes_per_sec_5m"`
+	RxBitsPerSec5m     float64 `json:"rx_bits_per_sec_5m"`
+	TxBitsPerSec5m     float64 `json:"tx_bits_per_sec_5m"`
+	TotalBitsPerSec5m  float64 `json:"total_bits_per_sec_5m"`
 }
 
 type counters struct{ rx, tx uint64 }
@@ -84,9 +92,26 @@ func readTotals() (c counters, err error) {
 	return c, sc.Err()
 }
 
+// ---- скользящее окно по накопителям ----
+
+type histEntry struct {
+	t     time.Time
+	cumRx float64
+	cumTx float64
+}
+
+func pruneOld(history []histEntry, now time.Time) []histEntry {
+	cut := now.Add(-avgWindow)
+	// оставляем самую старую точку, если она единственная
+	i := 0
+	for i < len(history)-1 && history[i].t.Before(cut) {
+		i++
+	}
+	return history[i:]
+}
+
 func main() {
-	err := godotenv.Load("../.env")
-	if err != nil {
+	if err := godotenv.Load("../.env"); err != nil {
 		log.Println("No .env file found")
 	}
 
@@ -119,6 +144,10 @@ func main() {
 	}
 	prevAt := time.Now()
 
+	// накопители с момента старта процесса
+	var cumRx, cumTx float64
+	history := []histEntry{{t: prevAt, cumRx: 0, cumTx: 0}}
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -147,6 +176,24 @@ func main() {
 			rxBps := drx / sec
 			txBps := dtx / sec
 
+			// обновляем накопители и историю
+			cumRx += drx
+			cumTx += dtx
+			history = append(history, histEntry{t: now, cumRx: cumRx, cumTx: cumTx})
+			history = pruneOld(history, now)
+
+			// 5-минутное среднее (если истории < ~2 точек, просто берём текущие bps)
+			var rx5m, tx5m float64
+			old := history[0]
+			dt5 := now.Sub(old.t).Seconds()
+			if dt5 > 0 {
+				rx5m = (cumRx - old.cumRx) / dt5
+				tx5m = (cumTx - old.cumTx) / dt5
+			} else {
+				rx5m = rxBps
+				tx5m = txBps
+			}
+
 			pl := Payload{
 				Host:             host,
 				NodeName:         nodeName,
@@ -158,6 +205,13 @@ func main() {
 				TxBitsPerSec:     txBps * 8,
 				TotalBytesPerSec: rxBps + txBps,
 				TotalBitsPerSec:  (rxBps + txBps) * 8,
+
+				RxBytesPerSec5m:    rx5m,
+				TxBytesPerSec5m:    tx5m,
+				TotalBytesPerSec5m: rx5m + tx5m,
+				RxBitsPerSec5m:     rx5m * 8,
+				TxBitsPerSec5m:     tx5m * 8,
+				TotalBitsPerSec5m:  (rx5m + tx5m) * 8,
 			}
 
 			body, _ := json.Marshal(pl)
@@ -167,7 +221,8 @@ func main() {
 				req.Header.Set("Authorization", "Bearer "+apiKey)
 			}
 
-			log.Printf("reporting: rx=%.1fB/s tx=%.1fB/s to %s\n", pl.RxBytesPerSec, pl.TxBytesPerSec, reportURL)
+			log.Printf("reporting: rx=%.1fB/s tx=%.1fB/s | 5m avg rx=%.1fB/s tx=%.1fB/s to %s\n",
+				pl.RxBytesPerSec, pl.TxBytesPerSec, pl.RxBytesPerSec5m, pl.TxBytesPerSec5m, reportURL)
 
 			resp, err := client.Do(req)
 			if err != nil {
