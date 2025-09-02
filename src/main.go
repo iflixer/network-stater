@@ -26,7 +26,7 @@ const avgWindow = 5 * time.Minute
 type Payload struct {
 	Host             string  `json:"host"`
 	NodeName         string  `json:"node_name,omitempty"`
-	Timestamp        string  `json:"timestamp"`
+	Timestamp        int64   `json:"timestamp"`
 	IntervalSeconds  float64 `json:"interval_seconds"`
 	RxBytesPerSec    float64 `json:"rx_bytes_per_sec"`
 	TxBytesPerSec    float64 `json:"tx_bytes_per_sec"`
@@ -197,7 +197,7 @@ func main() {
 			pl := Payload{
 				Host:             host,
 				NodeName:         nodeName,
-				Timestamp:        now.UTC().Format(time.RFC3339Nano),
+				Timestamp:        now.UTC().Unix(),
 				IntervalSeconds:  sec,
 				RxBytesPerSec:    rxBps,
 				TxBytesPerSec:    txBps,
@@ -223,6 +223,8 @@ func main() {
 
 			log.Printf("reporting: rx=%.1fB/s tx=%.1fB/s | 5m avg rx=%.1fB/s tx=%.1fB/s to %s\n",
 				pl.RxBytesPerSec, pl.TxBytesPerSec, pl.RxBytesPerSec5m, pl.TxBytesPerSec5m, reportURL)
+
+			//log.Printf("body: %s", body)
 
 			resp, err := client.Do(req)
 			if err != nil {

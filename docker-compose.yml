@@ -1,0 +1,8 @@
+
+services:
+  network-stater:
+    build: .
+    environment:
+      REPORT_URL: "https://nginx.cis-bel-back.orb.local/cdn/netload"
+      API_KEY: "secret123"
+      INTERVAL: 15s
