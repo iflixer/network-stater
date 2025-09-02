@@ -1,4 +1,5 @@
 // netload-reporter.go
+// sends network usage to http
 package main
 
 import (
